@@ -68,6 +68,11 @@ type Repository struct {
 	saveListener RepositorySaveListener
 }
 
+func (r *Repository) SetSaveListener(ctx context.Context, saveListener RepositorySaveListener) (err error) {
+	r.saveListener = saveListener
+	return
+}
+
 func (r *Repository) RegisterAggregates(ctx context.Context, aggregates ...Aggregate) (err error) {
 	for _, aggregate := range aggregates {
 		aggregateName := getAggregateName(aggregate)

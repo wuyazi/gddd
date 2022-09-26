@@ -9,6 +9,7 @@ func NewAggregateId() (id int64) {
 
 func ApplyAggregateChange(ctx context.Context, aggregate Aggregate, change aggregateChange) {
 	aggregate.Apply(aggregate, change)
+	return
 }
 
 type Aggregate interface {
