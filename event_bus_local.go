@@ -2,7 +2,6 @@ package gddd
 
 import (
 	"context"
-	"encoding/json"
 	"sync"
 )
 
@@ -115,11 +114,8 @@ func (bus *LocalEventBus) Start(ctx context.Context) (err error) {
 			if !has {
 				continue
 			}
-			p, jsonErr := json.Marshal(event.value)
-			if jsonErr != nil {
-				continue
-			}
-			_, _ = handle(ctx, NewJsonEventDecoder(p))
+			domainEvent := event.value.(DomainEvent)
+			_, _ = handle(ctx, domainEvent)
 			bus.eventCount.Done()
 		}
 	}(ctx, bus)

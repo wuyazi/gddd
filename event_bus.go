@@ -9,7 +9,7 @@ import (
 
 // EventHandle handle event, if return err is not nil, it will reject event,
 // if want to requeue, then make the requeue be true
-type EventHandle func(ctx context.Context, eventDecoder EventDecoder) (err error, requeue bool)
+type EventHandle func(ctx context.Context, domainEvent DomainEvent) (err error, requeue bool)
 
 type EventBus interface {
 	Name() string

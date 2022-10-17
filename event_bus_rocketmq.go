@@ -11,26 +11,32 @@ import (
 	"strings"
 )
 
-type RocketMqEventBusConfig struct {
+type RocketMqEventProducerConfig struct {
 	DomainName    string
 	SubDomainName string
 	NameServers   []string
 	EventStore    *EventStore
 }
 
-func NewRocketMqEventBus(ctx context.Context, config RocketMqEventBusConfig) (bus EventBus, err error) {
+type RocketmqEventProducer struct {
+	Name     string
+	Brokers  []string
+	Producer rocketmq.TransactionProducer
+}
+
+func NewRocketMqEventProducer(ctx context.Context, config RocketMqEventProducerConfig) (eventProducer RocketmqEventProducer, err error) {
 	domainName := strings.TrimSpace(config.DomainName)
 	if domainName == "" {
-		err = fmt.Errorf("new rocketmq event bus failed, DomainName is empty")
+		err = fmt.Errorf("new rocketmq event producer failed, DomainName is empty")
 		return
 	}
 	subDomainName := strings.TrimSpace(config.SubDomainName)
 	if subDomainName == "" {
-		err = fmt.Errorf("new rocketmq event bus failed, SubDomainName is empty")
+		err = fmt.Errorf("new rocketmq event producer failed, SubDomainName is empty")
 		return
 	}
 	if config.NameServers == nil || len(config.NameServers) == 0 {
-		err = fmt.Errorf("new rocketmq event bus failed, NameServers is nil or empty")
+		err = fmt.Errorf("new rocketmq event producer failed, NameServers is nil or empty")
 		return
 	}
 	p, err := rocketmq.NewTransactionProducer(
@@ -42,54 +48,39 @@ func NewRocketMqEventBus(ctx context.Context, config RocketMqEventBusConfig) (bu
 		fmt.Printf("new producer error: %s\n", err.Error())
 		panic(err)
 	}
-	err = p.Start()
+	eventProducer = RocketmqEventProducer{
+		Name:     fmt.Sprintf("%s_%s", config.DomainName, config.SubDomainName),
+		Brokers:  config.NameServers,
+		Producer: p,
+	}
+	eventProducer.Producer = p
+	return
+}
+
+func (p *RocketmqEventProducer) Start() {
+	err := p.Producer.Start()
 	if err != nil {
 		fmt.Printf("start producer error: %s\n", err.Error())
 		panic(err)
 	}
+}
 
-	// consumer
-	c, _ := rocketmq.NewPushConsumer(
-		consumer.WithGroupName("testGroup"),
-		consumer.WithNsResolver(primitive.NewPassthroughResolver(config.NameServers)),
-	)
+func (p *RocketmqEventProducer) Stop() {
+	err := p.Producer.Shutdown()
 	if err != nil {
-		fmt.Printf("new consumer error: %s\n", err.Error())
+		fmt.Printf("stop producer error: %s\n", err.Error())
 		panic(err)
 	}
-
-	consumers := make(map[string]EventHandle)
-	bus0 := &rocketmqEventBus{
-		name: fmt.Sprintf("%s_%s", config.DomainName, config.SubDomainName),
-		//running:   NewAtomicSwitch(),
-		brokers:   config.NameServers,
-		producer:  p,
-		consumer:  c,
-		consumers: consumers,
-	}
-	bus = bus0
 	return
 }
 
-type rocketmqEventBus struct {
-	name      string
-	brokers   []string
-	producer  rocketmq.TransactionProducer
-	consumer  rocketmq.PushConsumer
-	consumers map[string]EventHandle
-}
-
-func (bus *rocketmqEventBus) Name() string {
-	return bus.name
-}
-
-func (bus *rocketmqEventBus) Send(ctx context.Context, eventMessages ...DomainEventMessage) (err error) {
-	if bus.producer == nil {
-		err = fmt.Errorf("rocketmq event bus send event failed, producer is nil")
+func (p *RocketmqEventProducer) Send(ctx context.Context, eventMessages ...DomainEventMessage) (err error) {
+	if p.Producer == nil {
+		err = fmt.Errorf("rocketmq event producer send event failed, Producer is nil")
 		return
 	}
 	if eventMessages == nil || len(eventMessages) == 0 {
-		err = fmt.Errorf("rocketmq event bus send event failed, eventMessages is nil or empty")
+		err = fmt.Errorf("rocketmq event producer send event failed, eventMessages is nil or empty")
 		return
 	}
 	msgs := make([]*primitive.Message, 0, 1)
@@ -99,10 +90,10 @@ func (bus *rocketmqEventBus) Send(ctx context.Context, eventMessages ...DomainEv
 		if err != nil {
 			return
 		}
-		msg := primitive.NewMessage(eventMessage.TopicName(bus.name), messageBody)
+		msg := primitive.NewMessage(eventMessage.TopicName(p.Name), messageBody)
 		msgs = append(msgs, msg)
 	}
-	res, err := bus.producer.SendMessageInTransaction(ctx, msgs...)
+	res, err := p.Producer.SendMessageInTransaction(ctx, msgs...)
 	if err != nil {
 		fmt.Printf("send message error: %s\n", err)
 	} else {
@@ -111,47 +102,86 @@ func (bus *rocketmqEventBus) Send(ctx context.Context, eventMessages ...DomainEv
 	return
 }
 
-func (bus *rocketmqEventBus) Recv(_ context.Context, topic string, handle EventHandle) (err error) {
-	topic = strings.TrimSpace(topic)
-	if topic == "" {
-		err = fmt.Errorf("rocketmq event bus recv event failed, topic is empty")
-		return
-	}
-	if handle == nil {
-		err = fmt.Errorf("rocketmq event bus recv event failed, handle is nil")
-		return
-	}
-	bus.consumers[topic] = handle
+type RocketMqEventConsumerConfig struct {
+	DomainName  string
+	GroupName   string
+	NameServers []string
+}
+
+type RocketMqEventConsumer struct {
+	DomainName string
+	GroupName  string
+	Consumer   rocketmq.PushConsumer
+}
+
+func NewRocketMqEventConsumer(ctx context.Context, config RocketMqEventConsumerConfig) (eventConsumer *RocketMqEventConsumer, err error) {
+	eventConsumer.DomainName = config.DomainName
+	eventConsumer.GroupName = config.GroupName
+	c, err := rocketmq.NewPushConsumer(
+		consumer.WithGroupName(eventConsumer.GroupName),
+		consumer.WithNsResolver(primitive.NewPassthroughResolver(config.NameServers)),
+	)
+	eventConsumer.Consumer = c
 	return
 }
 
-func (bus *rocketmqEventBus) Start(ctx context.Context) (err error) {
-	go func() {
-		for {
-			err = bus.consumer.Subscribe("DefaultCluster", consumer.MessageSelector{}, func(ctx context.Context,
-				msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
-				for i := range msgs {
-					fmt.Printf("subscribe callback: %v \n", msgs[i])
+func (c *RocketMqEventConsumer) Start() {
+	err := c.Consumer.Start()
+	if err != nil {
+		fmt.Printf("RocketMqEventConsumer start error: %v\n", err)
+		panic(err)
+	}
+}
+
+func (c *RocketMqEventConsumer) Stop() {
+	err := c.Consumer.Shutdown()
+	if err != nil {
+		fmt.Printf("RocketMqEventConsumer stop error: %v\n", err)
+		panic(err)
+	}
+}
+
+func (c *RocketMqEventConsumer) Subscribe(topicName string, change aggregateChange, eventHandle EventHandle) {
+	topicName = strings.TrimSpace(topicName)
+	if topicName == "" {
+		err := fmt.Errorf("RocketMqEventConsumer subscribe event failed, topicName is empty")
+		panic(err)
+	}
+	if change == nil {
+		err := fmt.Errorf("RocketMqEventConsumer subscribe event failed, change is nil")
+		panic(err)
+	}
+	if eventHandle == nil {
+		err := fmt.Errorf("RocketMqEventConsumer subscribe event failed, eventHandle is nil")
+		panic(err)
+	}
+	err := c.Consumer.Subscribe(topicName, consumer.MessageSelector{},
+		func(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
+			for _, msg := range msgs {
+				if topicName == msg.Message.Topic {
+					domainEventMessage := new(DomainEventMessage)
+					err := json.Unmarshal(msg.Message.Body, domainEventMessage)
+					if err != nil {
+						return consumer.ConsumeRetryLater, err
+					}
+					if getAggregateChangeName(change) == domainEventMessage.EventName {
+						var event SampleDomainEvent
+						// TODO: change is read only?
+						newChange := change
+						event, err = newSampleDomainEvent(*domainEventMessage, newChange)
+						if err != nil {
+							return 0, err
+						}
+						err, _ = eventHandle(context.TODO(), &event)
+						if err != nil {
+							return consumer.ConsumeRetryLater, err
+						}
+					}
 				}
-				//这个相当于消费者 消息ack，如果失败可以返回 consumer.ConsumeRetryLater
-				return consumer.ConsumeSuccess, nil
-			})
-			if err != nil {
-				fmt.Printf("consume error: %s\n", err.Error())
 			}
-		}
-	}()
-	return nil
-}
-
-func (bus *rocketmqEventBus) Shutdown() {
-	return
-}
-
-func (bus *rocketmqEventBus) Await() {
-	return
-}
-
-func (bus *rocketmqEventBus) Close(ctx context.Context) (err error) {
-	return
+			return consumer.ConsumeSuccess, nil
+		})
+	if err != nil {
+		panic(nil)
+	}
 }

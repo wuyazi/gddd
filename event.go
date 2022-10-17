@@ -22,6 +22,9 @@ type DomainEvent interface {
 	initEventId()
 }
 
+type RegularEvent interface {
+}
+
 type SampleDomainEvent struct {
 	aggregateId   int64
 	aggregateName string
@@ -71,6 +74,20 @@ func (s *SampleDomainEvent) EventBodyRaw() (bodyRaw []byte, err error) {
 	bodyRaw, err = json.Marshal(s.eventBody)
 	if err != nil {
 		err = fmt.Errorf("marshal domain event failed, %v", err)
+		return
+	}
+	return
+}
+
+func newSampleDomainEvent(eventMessage DomainEventMessage, change aggregateChange) (domainEvent SampleDomainEvent, err error) {
+	domainEvent = SampleDomainEvent{
+		aggregateId:   eventMessage.AggregateId,
+		aggregateName: eventMessage.AggregateName,
+		eventId:       eventMessage.EventId,
+		eventName:     eventMessage.EventName,
+	}
+	err = json.Unmarshal(eventMessage.EventBody, &change)
+	if err != nil {
 		return
 	}
 	return

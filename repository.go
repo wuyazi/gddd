@@ -39,20 +39,17 @@ func NewRepository(ctx context.Context, config *RepositoryConfig) (r *Repository
 	if esErr != nil {
 		panic(fmt.Errorf("aggregates repository create failed, new event store failed, err: %w", esErr))
 	}
-	rocketMqConfig := RocketMqEventBusConfig{
+	rocketMqConfig := RocketMqEventProducerConfig{
 		DomainName:    config.DomainName,
 		SubDomainName: config.SubDomainName,
 		NameServers:   config.RocketMqEventBusNameServers,
 		EventStore:    &es,
 	}
-	eb, ebErr := NewRocketMqEventBus(ctx, rocketMqConfig)
+	eb, ebErr := NewRocketMqEventProducer(ctx, rocketMqConfig)
 	if ebErr != nil {
 		panic(fmt.Errorf("aggregates repository create failed, new rocketMq eventBus failed, err: %w", ebErr))
 	}
-	ebStartErr := eb.Start(context.TODO())
-	if ebStartErr != nil {
-		panic(fmt.Errorf("aggregates repository create failed, start rocketMq eventBus failed, err: %w", ebStartErr))
-	}
+	eb.Start()
 	r = &Repository{
 		es:           es,
 		eb:           eb,
@@ -64,7 +61,7 @@ func NewRepository(ctx context.Context, config *RepositoryConfig) (r *Repository
 type Repository struct {
 	//noCopy       noCopy
 	es           EventStore
-	eb           EventBus
+	eb           RocketmqEventProducer
 	saveListener RepositorySaveListener
 }
 

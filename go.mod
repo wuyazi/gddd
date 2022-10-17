@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/apache/rocketmq-client-go/v2 v2.1.0
 	github.com/bwmarrin/snowflake v0.3.0
+	github.com/google/uuid v1.3.0
 	github.com/jinzhu/copier v0.3.5
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/stretchr/testify v1.7.0 // indirect
