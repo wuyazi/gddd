@@ -1,0 +1,13 @@
+syntax = "proto3";
+// protoc --proto_path=$GOPATH/src:. --go_out=. --go-grpc_out=. ./message.proto
+
+package proto;
+option go_package = "github.com/wuyazi/gddd/proto";
+
+message DomainEventMessageProto {
+    int64 aggregateId = 1;
+	  string aggregateName = 2;
+	  string eventName = 3;
+	  int64 eventId = 4;
+	  bytes EventBody = 5;
+}

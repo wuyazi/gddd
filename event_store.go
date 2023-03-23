@@ -2,11 +2,13 @@ package gddd
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
 type EventStore interface {
 	Name() (name string)
+	GetDB(ctx context.Context) *sql.DB
 	InitDomainEventStoreTable(ctx context.Context, aggregateName string)
 	ReadEvents(ctx context.Context, aggregateName string, aggregateId int64, lastEventId int64) (events []StoredEvent, err error)
 	StoreEvents(ctx context.Context, events []StoredEvent) (err error)

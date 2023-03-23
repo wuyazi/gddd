@@ -92,6 +92,10 @@ type mysqlEventStore struct {
 	snapshotsChan chan Aggregate
 }
 
+func (es *mysqlEventStore) GetDB(ctx context.Context) *sql.DB {
+	return es.db
+}
+
 func (es *mysqlEventStore) listenSnapshotsChan(ctx context.Context) {
 	go func(ctx context.Context, es *mysqlEventStore) {
 		stopped := false
