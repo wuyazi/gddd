@@ -18,3 +18,10 @@ message AbstractEvent {
 	int64 eventId = 3;
 	string eventName = 4;
 }
+
+message Extra {
+	int64 aggregateId = 1;
+	string aggregateName = 2;
+	int64 eventId = 3;
+	string eventName = 4;
+}
