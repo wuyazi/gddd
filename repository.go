@@ -171,13 +171,12 @@ func (r *Repository) Save(ctx context.Context, aggregates ...Aggregate) (ok bool
 			eventsMessages = append(eventsMessages, publishEventsMessage)
 		}
 		abstractAggregate.lifecycle.cleanDomainEvents()
-	}
-
-	// send event message
-	sendErr := r.eb.Send(ctx, eventsMessages...)
-	if sendErr != nil {
-		err = fmt.Errorf("aggregates repository save warn, send domain event failed, %v", sendErr)
-		return
+		// send message
+		sendErr := r.eb.Send(ctx, domainEvents...)
+		if sendErr != nil {
+			err = fmt.Errorf("aggregates repository save warn, send domain event failed, %v", sendErr)
+			return
+		}
 	}
 
 	ok = true

@@ -9,6 +9,7 @@ require (
 	github.com/jinzhu/copier v0.3.5
 	github.com/lithammer/shortuuid/v3 v3.0.7
 	github.com/valyala/bytebufferpool v1.0.0
+	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.0
 )
 
@@ -56,7 +57,6 @@ require (
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
 	golang.org/x/text v0.3.6 // indirect
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
-	google.golang.org/grpc v1.48.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 )
 

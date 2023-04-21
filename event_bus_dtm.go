@@ -11,7 +11,12 @@ import (
 	"github.com/dtm-labs/client/dtmcli"
 	"github.com/dtm-labs/client/dtmgrpc"
 	"github.com/lithammer/shortuuid/v3"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+	"log"
+	"runtime"
 	"strings"
+	"time"
 )
 
 type DtmEventProducerConfig struct {
@@ -52,10 +57,14 @@ func NewDtmEventProducer(ctx context.Context, config DtmEventProducerConfig) (ev
 	return
 }
 
-func ExecuteLocalTransaction(ctx context.Context, es EventStore, eventsMessages []DomainEventMessage) error {
+func ExecuteLocalTransaction(ctx context.Context, es EventStore, eventsMessages []DomainEvent) error {
 	storedEvents := make([]StoredEvent, 0, 1)
 	for _, eventMessage := range eventsMessages {
-		storedEvent, err := newJsonStoredEvent(eventMessage.AggregateId, eventMessage.AggregateName, eventMessage.EventId, eventMessage.EventName, eventMessage.EventBody)
+		EventBodyRaw, err := eventMessage.EventBodyRaw()
+		if err != nil {
+
+		}
+		storedEvent, err := newJsonStoredEvent(eventMessage.AggregateId(), eventMessage.AggregateName(), eventMessage.EventId(), eventMessage.EventName(), EventBodyRaw)
 		if err != nil {
 			return fmt.Errorf("newJsonStoredEvent error")
 		}
@@ -68,7 +77,7 @@ func ExecuteLocalTransaction(ctx context.Context, es EventStore, eventsMessages 
 	return nil
 }
 
-func (p *DtmEventProducer) Send(ctx context.Context, eventMessages ...DomainEventMessage) (err error) {
+func (p *DtmEventProducer) Send(ctx context.Context, eventMessages ...DomainEvent) (err error) {
 	if eventMessages == nil || len(eventMessages) == 0 {
 		err = fmt.Errorf("dtm event producer send event failed, eventMessages is nil or empty")
 		return
@@ -83,8 +92,7 @@ func (p *DtmEventProducer) Send(ctx context.Context, eventMessages ...DomainEven
 		}
 		fmt.Errorf("%+v", messageBody)
 		//dtmMsg = dtmMsg.Add("http://localhost:8081/api/busi/TransIn", &messageBody)
-		msg := newDomainEventMessageProto(eventMessage)
-		dtmMsg = dtmMsg.Add("localhost:8080/proto.userQuery/insertUser", &msg)
+		dtmMsg = dtmMsg.Add("localhost:8080/proto.userQuery/insertUser", eventMessage.EventBody())
 	}
 	err = dtmMsg.DoAndSubmitDB("localhost:8081/busi.Busi/QueryPreparedB", p.EventStore.GetDB(ctx), func(tx *sql.Tx) error {
 		// TODO use tx
@@ -94,6 +102,27 @@ func (p *DtmEventProducer) Send(ctx context.Context, eventMessages ...DomainEven
 		return err
 	}
 	return
+}
+
+func UnaryClientInterceptor() grpc.UnaryClientInterceptor {
+	return func(ctx context.Context, method string, req, reply interface{},
+		cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		// 预处理(pre-processing)
+		start := time.Now()
+		// 获取正在运行程序的操作系统
+		cos := runtime.GOOS
+		// 将操作系统信息附加到传出请求
+		ctx = metadata.AppendToOutgoingContext(ctx, "client-os", cos)
+
+		// 可以看做是当前 RPC 方法，一般在拦截器中调用 invoker 能达到调用 RPC 方法的效果，当然底层也是 gRPC 在处理。
+		// 调用RPC方法(invoking RPC method)
+		err := invoker(ctx, method, req, reply, cc, opts...)
+
+		// 后处理(post-processing)
+		end := time.Now()
+		log.Printf("RPC: %s,,client-OS: '%v' req:%v start time: %s, end time: %s, err: %v", method, cos, req, start.Format(time.RFC3339), end.Format(time.RFC3339), err)
+		return err
+	}
 }
 
 type DtmEventConsumerConfig struct {

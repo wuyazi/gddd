@@ -2,6 +2,7 @@ package gddd
 
 import (
 	"errors"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"strings"
 	"sync"
 )
@@ -11,7 +12,7 @@ type aggregateLifecycle struct {
 	domainEvents []DomainEvent
 }
 
-type aggregateChange interface{}
+type aggregateChange = protoreflect.ProtoMessage
 
 func (c *aggregateLifecycle) apply(agg Aggregate, aggChange aggregateChange) {
 	c.mutex.Lock()

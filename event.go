@@ -3,6 +3,7 @@ package gddd
 import (
 	"encoding/json"
 	"fmt"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"time"
 )
 
@@ -16,7 +17,7 @@ type DomainEvent interface {
 	AggregateName() string
 	EventId() int64
 	EventName() string
-	EventBody() interface{}
+	EventBody() protoreflect.ProtoMessage
 	EventBodyRaw() ([]byte, error)
 	EventCreateTime() time.Time
 	initEventId()
@@ -30,7 +31,7 @@ type SampleDomainEvent struct {
 	aggregateName string
 	eventId       int64
 	eventName     string
-	eventBody     interface{}
+	eventBody     protoreflect.ProtoMessage
 }
 
 func (s *SampleDomainEvent) initEventId() {
@@ -60,7 +61,7 @@ func (s *SampleDomainEvent) EventName() (name string) {
 	return
 }
 
-func (s *SampleDomainEvent) EventBody() (body interface{}) {
+func (s *SampleDomainEvent) EventBody() (body protoreflect.ProtoMessage) {
 	body = s.eventBody
 	return
 }
