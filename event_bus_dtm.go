@@ -5,9 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/apache/rocketmq-client-go/v2"
-	"github.com/apache/rocketmq-client-go/v2/consumer"
-	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/dtm-labs/client/dtmcli"
 	"github.com/dtm-labs/client/dtmgrpc"
 	"github.com/lithammer/shortuuid/v3"
@@ -129,82 +126,4 @@ type DtmEventConsumerConfig struct {
 	DomainName  string
 	GroupName   string
 	NameServers []string
-}
-
-type DtmEventConsumer struct {
-	DomainName string
-	GroupName  string
-	Consumer   rocketmq.PushConsumer
-}
-
-func NewDtmEventConsumer(ctx context.Context, config DtmEventConsumerConfig) (eventConsumer *DtmEventConsumer, err error) {
-	eventConsumer.DomainName = config.DomainName
-	eventConsumer.GroupName = config.GroupName
-	c, err := rocketmq.NewPushConsumer(
-		consumer.WithGroupName(eventConsumer.GroupName),
-		consumer.WithNsResolver(primitive.NewPassthroughResolver(config.NameServers)),
-	)
-	eventConsumer.Consumer = c
-	return
-}
-
-func (c *DtmEventConsumer) Start() {
-	err := c.Consumer.Start()
-	if err != nil {
-		fmt.Printf("DtmEventConsumer start error: %v\n", err)
-		panic(err)
-	}
-}
-
-func (c *DtmEventConsumer) Stop() {
-	err := c.Consumer.Shutdown()
-	if err != nil {
-		fmt.Printf("DtmEventConsumer stop error: %v\n", err)
-		panic(err)
-	}
-}
-
-func (c *DtmEventConsumer) Subscribe(topicName string, change aggregateChange, eventHandle EventHandle) {
-	topicName = strings.TrimSpace(topicName)
-	if topicName == "" {
-		err := fmt.Errorf("DtmEventConsumer subscribe event failed, topicName is empty")
-		panic(err)
-	}
-	if change == nil {
-		err := fmt.Errorf("DtmEventConsumer subscribe event failed, change is nil")
-		panic(err)
-	}
-	if eventHandle == nil {
-		err := fmt.Errorf("DtmEventConsumer subscribe event failed, eventHandle is nil")
-		panic(err)
-	}
-	err := c.Consumer.Subscribe(topicName, consumer.MessageSelector{},
-		func(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
-			for _, msg := range msgs {
-				if topicName == msg.Message.Topic {
-					domainEventMessage := new(DomainEventMessage)
-					err := json.Unmarshal(msg.Message.Body, domainEventMessage)
-					if err != nil {
-						return consumer.ConsumeRetryLater, err
-					}
-					if getAggregateChangeName(change) == domainEventMessage.EventName {
-						var event SampleDomainEvent
-						// TODO: change is read only?
-						newChange := change
-						event, err = newSampleDomainEvent(*domainEventMessage, newChange)
-						if err != nil {
-							return 0, err
-						}
-						err, _ = eventHandle(context.TODO(), &event)
-						if err != nil {
-							return consumer.ConsumeRetryLater, err
-						}
-					}
-				}
-			}
-			return consumer.ConsumeSuccess, nil
-		})
-	if err != nil {
-		panic(nil)
-	}
 }

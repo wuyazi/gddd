@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/wuyazi/gddd/proto"
 	"strings"
 )
 
@@ -51,17 +50,6 @@ func newDomainEventMessage(event DomainEvent) (msg DomainEventMessage, err error
 		EventName:     event.EventName(),
 		EventId:       event.EventId(),
 		EventBody:     eventBodyRaw,
-	}
-	return
-}
-
-func newDomainEventMessageProto(msg0 DomainEventMessage) (msg proto.DomainEventMessageProto) {
-	msg = proto.DomainEventMessageProto{
-		AggregateId:   msg0.AggregateId,
-		AggregateName: msg0.AggregateName,
-		EventName:     msg0.EventName,
-		EventId:       msg0.EventId,
-		EventBody:     msg0.EventBody,
 	}
 	return
 }
