@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dtm-labs/client/dtmcli"
+	"github.com/dtm-labs/client/dtmcli/dtmimp"
 	"github.com/dtm-labs/client/dtmgrpc"
+	"github.com/dtm-labs/dtmdriver"
 	"github.com/lithammer/shortuuid/v3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -21,6 +23,7 @@ type DtmEventProducerConfig struct {
 	SubDomainName string
 	NameServers   []string
 	EventStore    *EventStore
+	DtmDBConf     dtmimp.DBConf
 }
 
 type DtmEventProducer struct {
@@ -51,6 +54,11 @@ func NewDtmEventProducer(ctx context.Context, config DtmEventProducerConfig) (ev
 		Producer:   nil,
 		EventStore: *config.EventStore,
 	}
+	// start preparedB server
+	app := Startup(config.DtmDBConf)
+	time.Sleep(200 * time.Millisecond)
+	go RunHTTP(app)
+	//select {}
 	return
 }
 
@@ -80,6 +88,7 @@ func (p *DtmEventProducer) Send(ctx context.Context, eventMessages ...DomainEven
 		return
 	}
 	//dtmMsg := dtmcli.NewMsg("http://localhost:36789/api/dtmsvr", shortuuid.New())
+	dtmdriver.Middlewares.Grpc = append(dtmdriver.Middlewares.Grpc, SetGrpcHeaderForDomainEvent)
 	dtmMsg := dtmgrpc.NewMsgGrpc("localhost:36790", shortuuid.New())
 	for _, eventMessage := range eventMessages {
 		var messageBody []byte
@@ -89,16 +98,24 @@ func (p *DtmEventProducer) Send(ctx context.Context, eventMessages ...DomainEven
 		}
 		fmt.Errorf("%+v", messageBody)
 		//dtmMsg = dtmMsg.Add("http://localhost:8081/api/busi/TransIn", &messageBody)
-		dtmMsg = dtmMsg.Add("localhost:8080/proto.userQuery/insertUser", eventMessage.EventBody())
+		dtmMsg = dtmMsg.Add("localhost:8082/user_query.userQuery/insertUser", eventMessage.EventBody())
 	}
-	err = dtmMsg.DoAndSubmitDB("localhost:8081/busi.Busi/QueryPreparedB", p.EventStore.GetDB(ctx), func(tx *sql.Tx) error {
-		// TODO use tx
-		return ExecuteLocalTransaction(ctx, p.EventStore, eventMessages)
-	})
+	err = dtmMsg.DoAndSubmitDB(fmt.Sprintf("http://localhost:%d/api/busi/QueryPreparedB", BusiPort), p.EventStore.GetDB(ctx),
+		func(tx *sql.Tx) error {
+			// TODO use tx
+			return ExecuteLocalTransaction(ctx, p.EventStore, eventMessages)
+		})
 	if err != nil {
 		return err
 	}
 	return
+}
+
+// SetGrpcHeaderForDomainEvent interceptor to set head for DomainEvent
+func SetGrpcHeaderForDomainEvent(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+	md := metadata.New(map[string]string{"test_header": "test"})
+	ctx = metadata.NewOutgoingContext(ctx, md)
+	return invoker(ctx, method, req, reply, cc, opts...)
 }
 
 func UnaryClientInterceptor() grpc.UnaryClientInterceptor {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/dtm-labs/client/dtmcli/dtmimp"
 	"reflect"
 	"strings"
 )
@@ -20,6 +21,7 @@ type RepositoryConfig struct {
 	MysqlEventStoreDBConfig     DBConfig `json:"mysql_event_store_db_config"`
 	RocketMqEventBusNameServers []string `json:"rocket_mq_event_bus_name_servers"`
 	SaveListener                RepositorySaveListener
+	DtmDBConf                   dtmimp.DBConf
 }
 
 func NewRepository(ctx context.Context, config *RepositoryConfig) (r *Repository, err error) {
@@ -44,6 +46,7 @@ func NewRepository(ctx context.Context, config *RepositoryConfig) (r *Repository
 		SubDomainName: config.SubDomainName,
 		NameServers:   config.RocketMqEventBusNameServers,
 		EventStore:    &es,
+		DtmDBConf:     config.DtmDBConf,
 	}
 	eb, ebErr := NewDtmEventProducer(ctx, dtmConfig)
 	if ebErr != nil {
