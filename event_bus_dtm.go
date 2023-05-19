@@ -10,8 +10,11 @@ import (
 	"github.com/dtm-labs/client/dtmgrpc"
 	"github.com/dtm-labs/dtmdriver"
 	"github.com/lithammer/shortuuid/v3"
+	"github.com/wuyazi/gddd/event_message"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"log"
 	"runtime"
 	"strings"
@@ -98,11 +101,23 @@ func (p *DtmEventProducer) Send(ctx context.Context, eventMessages ...DomainEven
 		}
 		fmt.Errorf("%+v", messageBody)
 		//dtmMsg = dtmMsg.Add("http://localhost:8081/api/busi/TransIn", &messageBody)
-		dtmMsg = dtmMsg.Add("localhost:8082/user_query.userQuery/insertUser", eventMessage.EventBody())
+		abs := event_message.AbstractEvent{
+			AggregateId:   eventMessage.AggregateId(),
+			AggregateName: eventMessage.AggregateName(),
+			EventId:       eventMessage.EventId(),
+			EventName:     eventMessage.EventName(),
+		}
+		eventBody := proto.Clone(eventMessage.EventBody())
+		fd := eventBody.ProtoReflect().Descriptor().Fields().ByName("abs")
+		fv := protoreflect.ValueOfMessage(abs.ProtoReflect())
+		eventBody.ProtoReflect().Set(fd, fv)
+		dtmMsg = dtmMsg.Add("localhost:8082/user_query.userQuery/insertUser", eventBody)
 	}
+	dtmMsg.BranchHeaders = map[string]string{"test_header": "aaasdfa"}
 	err = dtmMsg.DoAndSubmitDB(fmt.Sprintf("http://localhost:%d/api/busi/QueryPreparedB", BusiPort), p.EventStore.GetDB(ctx),
 		func(tx *sql.Tx) error {
 			// TODO use tx
+			ctx = context.WithValue(ctx, "tx", tx)
 			return ExecuteLocalTransaction(ctx, p.EventStore, eventMessages)
 		})
 	if err != nil {

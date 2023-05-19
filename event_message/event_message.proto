@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package event_message;
+option go_package = "github.com/wuyazi/gddd/event_message";
+
+message AbstractEvent {
+	int64 aggregateId = 1;
+	string aggregateName = 2;
+	int64 eventId = 3;
+	string eventName = 4;
+}

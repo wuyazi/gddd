@@ -6,6 +6,7 @@ require (
 	github.com/bwmarrin/snowflake v0.3.0
 	github.com/dtm-labs/client v1.18.7
 	github.com/dtm-labs/dtm-examples v0.0.0-20221027024920-915e7aeb986e
+	github.com/dtm-labs/dtmdriver v0.0.6
 	github.com/gin-gonic/gin v1.9.0
 	github.com/jinzhu/copier v0.3.5
 	github.com/lithammer/shortuuid/v3 v3.0.7
@@ -19,7 +20,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
-	github.com/dtm-labs/dtmdriver v0.0.6 // indirect
 	github.com/dtm-labs/logger v0.0.1 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect

@@ -211,11 +211,12 @@ func (es *mysqlEventStore) StoreEvents(ctx context.Context, events []StoredEvent
 			event.EventBodyRaw(),
 		)
 	}
-	tx, txErr := es.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
-	if txErr != nil {
-		err = fmt.Errorf("mysql event store (%s) store events failed, begin database tx failed, %v", es.subDomainName, txErr)
-		return
-	}
+	tx := ctx.Value("tx").(*sql.Tx)
+	//tx, txErr := es.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
+	//if txErr != nil {
+	//	err = fmt.Errorf("mysql event store (%s) store events failed, begin database tx failed, %v", es.subDomainName, txErr)
+	//	return
+	//}
 	for aggregateName, sqlStmtArgs := range sqlStmtMap {
 		insertSQLBuffer := bytebufferpool.Get()
 		domainEventTableName := getDomainTableName(es.subDomainName, aggregateName, "events")
@@ -224,28 +225,28 @@ func (es *mysqlEventStore) StoreEvents(ctx context.Context, events []StoredEvent
 		insertSQL := strings.TrimSuffix(insertSQLBuffer.String(), ", ")
 		rs, insertErr := tx.ExecContext(ctx, insertSQL, sqlStmtArgs...)
 		if insertErr != nil {
-			_ = tx.Rollback()
+			//_ = tx.Rollback()
 			err = fmt.Errorf("mysql event store (%s) store events failed, insert failed, aggregateName is %s, %v", es.subDomainName, aggregateName, insertErr)
 			return
 		}
 		affected, affectedErr := rs.RowsAffected()
 		if affectedErr != nil {
-			_ = tx.Rollback()
+			//_ = tx.Rollback()
 			err = fmt.Errorf("mysql event store (%s) store events failed, insert failed. aggregateName is %s, get rows affected failed, %v", es.subDomainName, aggregateName, affectedErr)
 			return
 		}
 		if affected == 0 {
-			_ = tx.Rollback()
+			//_ = tx.Rollback()
 			err = fmt.Errorf("mysql event store (%s) store events failed, insert failed. aggregateName is %s, no rows affected failed, affected = %v", es.subDomainName, aggregateName, affected)
 			return
 		}
 	}
-	cmtErr := tx.Commit()
-	if cmtErr != nil {
-		_ = tx.Rollback()
-		err = fmt.Errorf("mysql event store (%s) store events failed, insert failed. commit failed, %v", es.subDomainName, cmtErr)
-		return
-	}
+	//cmtErr := tx.Commit()
+	//if cmtErr != nil {
+	//	_ = tx.Rollback()
+	//	err = fmt.Errorf("mysql event store (%s) store events failed, insert failed. commit failed, %v", es.subDomainName, cmtErr)
+	//	return
+	//}
 	return
 }
 
