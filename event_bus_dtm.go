@@ -114,6 +114,7 @@ func (p *DtmEventProducer) Send(ctx context.Context, eventMessages ...DomainEven
 		dtmMsg = dtmMsg.Add("localhost:8082/user_query.userQuery/insertUser", eventBody)
 	}
 	dtmMsg.BranchHeaders = map[string]string{"test_header": "aaasdfa"}
+	dtmcli.SetBarrierTableName("myhubdb.barrier")
 	err = dtmMsg.DoAndSubmitDB(fmt.Sprintf("http://localhost:%d/api/busi/QueryPreparedB", BusiPort), p.EventStore.GetDB(ctx),
 		func(tx *sql.Tx) error {
 			// TODO use tx
