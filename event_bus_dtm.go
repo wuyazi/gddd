@@ -92,7 +92,7 @@ func (p *DtmEventProducer) Send(ctx context.Context, eventMessages ...DomainEven
 	}
 	//dtmMsg := dtmcli.NewMsg("http://localhost:36789/api/dtmsvr", shortuuid.New())
 	dtmdriver.Middlewares.Grpc = append(dtmdriver.Middlewares.Grpc, SetGrpcHeaderForDomainEvent)
-	dtmMsg := dtmgrpc.NewMsgGrpc("localhost:36790", shortuuid.New())
+	dtmMsg := dtmgrpc.NewMsgGrpc("1.15.49.113:36790", shortuuid.New())
 	for _, eventMessage := range eventMessages {
 		var messageBody []byte
 		messageBody, err = json.Marshal(eventMessage)
