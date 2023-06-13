@@ -16,12 +16,11 @@ type RepositorySaveListener interface {
 }
 
 type RepositoryConfig struct {
-	DomainName                  string   `json:"domain_name"`
-	SubDomainName               string   `json:"sub_domain_name"`
-	MysqlEventStoreDBConfig     DBConfig `json:"mysql_event_store_db_config"`
-	RocketMqEventBusNameServers []string `json:"rocket_mq_event_bus_name_servers"`
-	SaveListener                RepositorySaveListener
-	DtmDBConf                   dtmimp.DBConf
+	DomainName          string   `json:"domain_name"`
+	SubDomainName       string   `json:"sub_domain_name"`
+	EventBusNameServers []string `json:"event_bus_name_servers"`
+	SaveListener        RepositorySaveListener
+	DtmDBConf           dtmimp.DBConf
 }
 
 func NewRepository(ctx context.Context, config *RepositoryConfig) (r *Repository, err error) {
@@ -35,7 +34,7 @@ func NewRepository(ctx context.Context, config *RepositoryConfig) (r *Repository
 	}
 	mysqlEventStoreConfig := MysqlEventStoreConfig{
 		SubDomainName: config.SubDomainName,
-		DBConfig:      config.MysqlEventStoreDBConfig,
+		DBConfig:      DBConfig{SqlDataSourceName: dtmimp.GetDsn(config.DtmDBConf)},
 	}
 	es, esErr := NewMysqlEventStore(ctx, mysqlEventStoreConfig)
 	if esErr != nil {
@@ -44,7 +43,7 @@ func NewRepository(ctx context.Context, config *RepositoryConfig) (r *Repository
 	dtmConfig := DtmEventProducerConfig{
 		DomainName:    config.DomainName,
 		SubDomainName: config.SubDomainName,
-		NameServers:   config.RocketMqEventBusNameServers,
+		NameServers:   config.EventBusNameServers,
 		EventStore:    &es,
 		DtmDBConf:     config.DtmDBConf,
 	}
