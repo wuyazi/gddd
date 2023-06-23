@@ -111,7 +111,7 @@ func (p *DtmEventProducer) Send(ctx context.Context, eventMessages ...DomainEven
 		fd := eventBody.ProtoReflect().Descriptor().Fields().ByName("abs")
 		fv := protoreflect.ValueOfMessage(abs.ProtoReflect())
 		eventBody.ProtoReflect().Set(fd, fv)
-		dtmMsg = dtmMsg.Add("localhost:8082/user_query.userQuery/insertUser", eventBody)
+		dtmMsg.AddTopic("create_user", eventBody)
 	}
 	dtmMsg.BranchHeaders = map[string]string{"test_header": "aaasdfa"}
 	dtmcli.SetBarrierTableName("myhubdb.barrier")
